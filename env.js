@@ -1,7 +1,6 @@
 module.exports = {
     /* These are all the secrets :D */
-    domain: 'some-game.auth0.com',
-    clientID: '89U7uQnK4wXYhB9dLUXSRDsdyTZRANTb',
-    packageIdentifier: 'com.auth0.example.cordova',
-    audience: 'http://some-game.auth0.com/userinfo'
+    domain: 'trimble-dev.auth0.com',
+    clientID: 'Xqm2Qye3TYqDzNFcfXM3qRbEM3rZor6N',
+    packageIdentifier: 'com.peoplenetonline.driveui'
 }

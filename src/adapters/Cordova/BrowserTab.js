@@ -13,6 +13,7 @@ class BrowserTabAdapter {
 
         return new Promise((resolve, reject) => {
             sharedView.show(options, (result) => {
+                debugger;
                 if (result.event === 'loaded') {
                     if (!this.hasFinished) {
                         return resolve({});

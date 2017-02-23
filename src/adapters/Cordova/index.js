@@ -17,6 +17,7 @@ import WebView from './WebView';
     static isBrowserTabAvailable () {
         return new Promise((resolve, reject) => {
             try{
+                //resolve(true);
                 SafariViewController.isAvailable(resolve, reject)
             }catch(e){
                 reject(false);

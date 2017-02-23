@@ -28,6 +28,8 @@ class PKCEAuth {
 
 
     handleCallback(responseUrl, cb) {
+        debugger;
+        console.log("got here");
         if (!responseUrl || typeof responseUrl !== 'string') {
             return cb(new Error('responseUrl must be a string'));
         }

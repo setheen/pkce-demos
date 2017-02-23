@@ -38,6 +38,7 @@ class App {
                 '/': {
                     id: 'loading',
                     onMount: (page) => {
+                        console.log("loading");
                         if (this.state.authenticated)
                             return this.redirectTo('/home');
                         return this.redirectTo('/login');
@@ -46,6 +47,8 @@ class App {
                 '/login': {
                     id: 'login',
                     onMount: (page) => {
+                        debugger;
+                        console.log("am here", this.state.authenticated);
                         if (this.state.authenticated === true) {
                             return this.redirectTo('/home');
                         }
@@ -56,6 +59,7 @@ class App {
                 '/home': {
                     id: 'profile',
                     onMount: (page) => {
+                        console.log(`profile page, authenticated: ${this.state.authenticated}`);
                         if (this.state.authenticated === false) {
                             return this.redirectTo('/login');
                         }
@@ -79,10 +83,12 @@ class App {
 
     loadProfile() {
         return new Promise((resolve, reject) => {
-            this.auth0.userInfo(this.state.accessToken, (err, profile) => {
-                if (err) reject(err);
-                resolve(profile);
-            });
+            debugger;
+            resolve(decodeJwt(this.state.accessToken));
+            // this.auth0.userInfo(this.state.accessToken, (err, profile) => {
+            //     if (err) reject(err);
+            //     resolve(profile);
+            // });
         });
     }
 
@@ -124,11 +130,16 @@ class App {
 
         return adapter.getResponseURL(url)
             .then((redirectUrl) => new Promise((resolve, reject) => {
-                const callback = (err, authResult) => err ? reject(err) : resolve(authResult);
+                const callback = (err, authResult) =>
+                 {
+                     debugger;
+                     console.log('here');
+                     err ? reject(err) : resolve(authResult);
+                 };
                 pkceAuth.handleCallback(redirectUrl, callback);
             }))
             .then((authResult) => {
-                localStorage.setItem('access_token', authResult.accessToken);
+                localStorage.setItem('access_token', authResult.idToken);
                 if(window.chrome && Chrome.getContext() === 'background'){
                     return; 
                 }
@@ -137,8 +148,27 @@ class App {
     }
 
     logout(e) {
-        localStorage.removeItem('access_token');
-        this.resumeApp();
+        return new Promise((resolve, reject) =>
+        {
+            debugger;
+            localStorage.removeItem('access_token');
+            const Adapter = this.getApplicableAdapter();
+            const adapter = new Adapter(env.domain, env.packageIdentifier);
+            const url = `https://${env.domain}/v2/logout?client_id=${env.clientID}&returnTo=${adapter.getRedirectURL()}`;
+            adapter.getResponseURL(url)
+            .then(result => 
+            {
+                debugger;
+                this.resumeApp();
+                resolve();
+            })
+            .catch(e =>
+            {
+                debugger;
+                console.error(e);
+                reject();
+            })
+        });
     }
 
     redirectTo(route) {
