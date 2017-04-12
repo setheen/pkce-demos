@@ -11,9 +11,9 @@ function main() {
 
     /* @TODO: handle these in the build process */
     
-    if (window.cordova || window.electron) {
-        window.handleOpenURL = app.resumeAuth;
-    }
+    // if (window.cordova || window.electron) {
+    //     window.handleOpenURL = app.resumeAuth;
+    // }
 
     /* Quick and dirty access check for chrome */
     if(window.chrome && Chrome.getContext() === 'background') {

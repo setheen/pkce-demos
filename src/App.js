@@ -26,12 +26,24 @@ const $c = (className) => document.getElementsByClassName(className);
 @autobind
 class App {
     constructor() {
-        this.auth0 = new Auth0.Authentication({
-            domain: env.domain,
-            clientID: env.clientID
+        this.getApplicableAdapter();
+        this.auth0 = new window.ConnectedDriverAuth("development");
+        this.auth0.subscribe(authData =>
+        {
+            if (authData)
+            {
+                console.log("Is Authenticated", authData);
+                debugger;
+                this.auth0.getFirebaseTokenForConnectedDriver().then(token => console.log("CDToken", token));
+                this.auth0.getFirebaseTokenForIris().then(token => console.log("IrisToken", token));
+                this.auth0.getFirebaseTokenForTimeline().then(token => console.log("TimelineToken", token));
+            }
+            else
+                console.log("Not Authenticated");
         });
+        //this.test = new window.ConnectedDriverAuth("development");
         this.state = {
-            authenticated: false,
+            //authenticated: false,
             accessToken: false,
             currentRoute: '/',
             routes: {
@@ -39,7 +51,7 @@ class App {
                     id: 'loading',
                     onMount: (page) => {
                         console.log("loading");
-                        if (this.state.authenticated)
+                        if (this.auth0.isAuthenticated())
                             return this.redirectTo('/home');
                         return this.redirectTo('/login');
                     }
@@ -48,8 +60,8 @@ class App {
                     id: 'login',
                     onMount: (page) => {
                         debugger;
-                        console.log("am here", this.state.authenticated);
-                        if (this.state.authenticated === true) {
+                        console.log("am here", this.auth0.isAuthenticated());
+                        if (this.auth0.isAuthenticated()) {
                             return this.redirectTo('/home');
                         }
                         const loginButton = page.querySelector('.btn-login');
@@ -59,8 +71,8 @@ class App {
                 '/home': {
                     id: 'profile',
                     onMount: (page) => {
-                        console.log(`profile page, authenticated: ${this.state.authenticated}`);
-                        if (this.state.authenticated === false) {
+                        console.log(`profile page, authenticated: ${this.auth0.isAuthenticated()}`);
+                        if (!this.auth0.isAuthenticated()) {
                             return this.redirectTo('/login');
                         }
                         const logoutButton = page.querySelector('.btn-logout');
@@ -98,6 +110,10 @@ class App {
             return Electron;
         }
         if(window.cordova){
+            console.log("getting http server");
+            var httpd = ( cordova && cordova.plugins && cordova.plugins.CorHttpd ) ? cordova.plugins.CorHttpd : null;
+            console.log("httpd", httpd);
+            httpd.startServer({ port: 8081, localhost_only: true}, url => console.log("startServer", url), err => console.error("startServerError", err));
             return Cordova;
         }
         if(window.chrome.runtime){
@@ -109,66 +125,96 @@ class App {
         if (e.target) {
             e.target.disabled = true;
         }
+        debugger;
+        
+        this.auth0.login()
+        .then(() => this.resumeApp())
+        .catch(error =>
+        {
+            debugger;
+            console.log("what!");
+            console.log(error);
+        });
+   
+        // if(window.chrome && Chrome.getContext() !== 'background'){
+        //     /* Send message and return, the background script will execute just this */
+        //     return chrome.runtime.sendMessage({
+        //         type: "authenticate"
+        //     });
+        // }
 
-        if(window.chrome && Chrome.getContext() !== 'background'){
-            /* Send message and return, the background script will execute just this */
-            return chrome.runtime.sendMessage({
-                type: "authenticate"
-            });
-        }
+        // const Adapter = this.getApplicableAdapter();
+        // const adapter = new Adapter(env.domain, env.packageIdentifier);
+        // const pkceAuth = new PKCEAuth(env.domain, env.clientID, adapter.getRedirectURL());
 
-        const Adapter = this.getApplicableAdapter();
-        const adapter = new Adapter(env.domain, env.packageIdentifier);
-        const pkceAuth = new PKCEAuth(env.domain, env.clientID, adapter.getRedirectURL());
+        // const options = {
+        //     scope: 'openid profile',
+        //     audience: env.audience
+        // };
 
-        const options = {
-            scope: 'openid profile',
-            audience: env.audience
-        };
+        // const url = pkceAuth.buildAuthorizeUrl(options);
 
-        const url = pkceAuth.buildAuthorizeUrl(options);
-
-        return adapter.getResponseURL(url)
-            .then((redirectUrl) => new Promise((resolve, reject) => {
-                const callback = (err, authResult) =>
-                 {
-                     debugger;
-                     console.log('here');
-                     err ? reject(err) : resolve(authResult);
-                 };
-                pkceAuth.handleCallback(redirectUrl, callback);
-            }))
-            .then((authResult) => {
-                localStorage.setItem('access_token', authResult.idToken);
-                if(window.chrome && Chrome.getContext() === 'background'){
-                    return; 
-                }
-                this.resumeApp();
-            });
+        // return adapter.getResponseURL(url)
+        //     .then((redirectUrl) => new Promise((resolve, reject) => {
+        //         const callback = (err, authResult) =>
+        //          {
+        //              debugger;
+        //              console.log('here');
+        //              err ? reject(err) : resolve(authResult);
+        //          };
+        //         pkceAuth.handleCallback(redirectUrl, callback);
+        //     }))
+        //     .then((authResult) => {
+        //         localStorage.setItem('access_token', authResult.idToken);
+        //         if(window.chrome && Chrome.getContext() === 'background'){
+        //             return; 
+        //         }
+        //         this.resumeApp();
+        //     });
     }
 
     logout(e) {
-        return new Promise((resolve, reject) =>
+
+        try
+        {
+        this.auth0.logout()
+        .then(() =>
+        {
+            this.resumeApp();
+        })
+        .catch(e => 
         {
             debugger;
-            localStorage.removeItem('access_token');
-            const Adapter = this.getApplicableAdapter();
-            const adapter = new Adapter(env.domain, env.packageIdentifier);
-            const url = `https://${env.domain}/v2/logout?client_id=${env.clientID}&returnTo=${adapter.getRedirectURL()}`;
-            adapter.getResponseURL(url)
-            .then(result => 
-            {
-                debugger;
-                this.resumeApp();
-                resolve();
-            })
-            .catch(e =>
-            {
-                debugger;
-                console.error(e);
-                reject();
-            })
-        });
+            console.log("what!");
+            console.log(e);
+        })
+    }
+    catch(e)
+    {
+        debugger;
+        console.log(e);
+    }
+        // return new Promise((resolve, reject) =>
+        // {
+        //     debugger;
+        //     localStorage.removeItem('access_token');
+        //     const Adapter = this.getApplicableAdapter();
+        //     const adapter = new Adapter(env.domain, env.packageIdentifier);
+        //     const url = `https://${env.domain}/v2/logout?client_id=${env.clientID}&returnTo=${adapter.getRedirectURL()}`;
+        //     adapter.getResponseURL(url)
+        //     .then(result => 
+        //     {
+        //         debugger;
+        //         this.resumeApp();
+        //         resolve();
+        //     })
+        //     .catch(e =>
+        //     {
+        //         debugger;
+        //         console.error(e);
+        //         reject();
+        //     })
+        // });
     }
 
     redirectTo(route) {
@@ -180,16 +226,17 @@ class App {
     }
 
     resumeApp() {
+        debugger;
         const accessToken = localStorage.getItem('access_token');
 
         if (accessToken) {
             const payload = decodeJwt(accessToken);
             if (payload.exp > Date.now() / 1000) {
-                this.state.authenticated = true;
+                //this.state.authenticated = true;
                 this.state.accessToken = accessToken;
             }
         } else {
-            this.state.authenticated = false;
+            //this.state.authenticated = false;
             this.state.accessToken = '';
         }
 
